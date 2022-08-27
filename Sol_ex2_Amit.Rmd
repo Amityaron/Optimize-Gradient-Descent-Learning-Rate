@@ -1,0 +1,539 @@
+---
+title: "Solution of Ex2 Computational Methods in Nonlinear Optimization "
+author: " Author :Amit yaron"
+date: '2022-05-04'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r,message=FALSE,echo=FALSE,warning=FALSE}
+library(cmna)
+library(pracma)
+library(plotly)
+library(ContourFunctions)
+library(laGP)
+```
+
+#### **Q1 section (a):** <br />
+Investigate the performance of the steepest descent algorithm <br />
+<br />
+For the function : <br /> 
+$$
+f(x,y)=100\cdot(y-x)^2+(1-x)^2 
+$$
+
+The gradient of the function is: <br />
+$$
+\nabla f(x,y)= \begin{bmatrix} \frac{\partial f(x,y)}{\partial x} \\ \frac{\partial f(x,y)}{\partial y} \end{bmatrix} = \begin{bmatrix} 400x^3+2x-2-400xy \\ -200x^2+200y \end{bmatrix}
+$$
+
+The formula for descent algorithm for $f(x,y)$
+$$
+Z^{n+1} = Z^{n} - \alpha \cdot \nabla f(Z^{n})=\begin{bmatrix} x \\ y \end{bmatrix} - \alpha \cdot \begin{bmatrix} 400x^3+2x-2-400xy \\ -200x^2+200y \end{bmatrix} =\begin{bmatrix} x - 2\alpha\cdot (200x^3+x-1-200xy) \\ y-200\alpha \cdot (-x^2+y) \end{bmatrix}
+$$
+
+Find the optimal $\alpha$ of the function with Golden Section Search Algorithm on the interval [0,1] <br />
+ 
+The iterative algorithm get $g(\alpha),[m,M],tolerance$. <br />
+1. Calculate the points $x_1=M-\varphi*(M-m)$  and $x_2=m+\varphi*(M-m)$ when $\varphi=\frac{1+\sqrt{5}}{2}$. <br />
+2. Calculate $f(x_1)$  and $f(x_2)$. <br />
+3. If $f(x_2)>f(x_1)$ update the boundaries and the points: $M=x_2$ and $x_2=x_1$ and $x_1=M-\varphi*(M-m)$. <br />
+4. Otherwise If $f(x_2)<f(x_1)$  update the boundaries and the points:$m=x_1$ and $x_2=m+\varphi*(M-m)$. <br />
+5. Repeat step 2,4 until $|M-m|<tolerance$. <br />
+6. return $\frac{|M-m|}{2}$ <br />
+
+
+$$
+g(\alpha) = f(Z^{n} - \alpha \cdot \nabla f(Z^{n}))
+$$
+
+
+##### Implementing the golden section search method : 
+
+```{r,message=FALSE,echo=TRUE,warning=FALSE}
+
+##### Implementing the golden section search method
+##### a modification of the bisection method with the golden ratio
+golden.section.search = function(f, lower.bound, upper.bound, tolerance)
+{
+   golden.ratio = 2/(sqrt(5) + 1)
+
+   ### Use the golden ratio to set the initial test points
+   x1 = upper.bound - golden.ratio*(upper.bound - lower.bound)
+   x2 = lower.bound + golden.ratio*(upper.bound - lower.bound)
+
+   ### Evaluate the function at the test points
+   f1 = f(x1)
+   f2 = f(x2)
+
+   iteration = 0
+
+   while (abs(upper.bound - lower.bound) > tolerance)
+   {
+      iteration = iteration + 1
+      if (f2 > f1)
+      # then the minimum is to the left of x2
+      # let x2 be the new upper bound
+      # let x1 be the new upper test point
+      {
+         ### Set the new upper bound
+         upper.bound = x2
+         ### Set the new upper test point
+         ### Use the special result of the golden ratio
+         x2 = x1
+         f2 = f1
+
+         ### Set the new lower test point
+         x1 = upper.bound - golden.ratio*(upper.bound - lower.bound)
+         f1 = f(x1)
+      } 
+      else 
+      {
+         # the minimum is to the right of x1
+         # let x1 be the new lower bound
+         # let x2 be the new lower test point
+
+         ### Set the new lower bound
+         lower.bound = x1
+
+         ### Set the new lower test point
+         x1 = x2
+
+         f1 = f2
+
+         ### Set the new upper test point
+         x2 = lower.bound + golden.ratio*(upper.bound - lower.bound)
+         f2 = f(x2)
+      }
+   }
+
+   ### Use the mid-point of the final interval as the estimate of the optimizer
+   estimated.minimizer = (lower.bound + upper.bound)/2
+   
+   
+   return(estimated.minimizer)
+}
+
+
+
+```
+
+
+
+
+Implement of the steepest descent algorithm: <br />
+
+```{r,message=FALSE,echo=TRUE,warning=FALSE}
+
+#(1,1) is the Minimum point of this f(x,y).
+
+sdescent = function(a0, tol, maxiter){
+
+f<-function(x,y){100*(y-x^2)^2+(1-x)^2}
+
+L=list()#List of all point in each iteration
+
+for (i in 1:maxiter) {
+
+#gradiant on function in point a0   
+
+x=a0[1]
+y=a0[2]
+  
+dx= -400*x*y+400*x^3-2+2*x
+dy=  200*y-200*x^2
+grad=c(dx,dy)
+
+
+#Calculate alpha:
+g_alpah <- function(w) {f(x-w*grad[1],y-w*grad[2]) }
+alpah_star= golden.section.search(g_alpah,0,1,0.001)
+
+
+#Update the point Z
+z0=a0
+a0=a0-alpah_star*grad
+l=list(a0,i)
+L=append(L,l)
+
+if( norm(a0-z0, type="2")<tol){break}#tolerance condition on the loop
+
+}
+
+return(L)
+}
+
+ 
+z=c(1,1.5) #Initialize starting point.  
+a0=z
+maxiter=1000 #Number of iteration.
+tol=0.00001 #tolerance.
+
+points= sdescent(z,tol,maxiter)
+
+
+
+print(paste0( "Number of iteration: ",points[length(points)]))
+print(paste0("The numeric Min extreme point of f is:",points[length(points)-1]) )
+
+
+```
+
+
+ 
+#### **Q1 section (b):** <br />
+
+##### plot of the function with the points produced by the algorithm: <br />
+The $\color{blue}{\text{blue point}}$ is the point (1,1) the Minimum point of this f(x,y). <br />
+The $\color{red}{\text{red points}}$ are the points produced by the algorithm. <br /> 
+```{r,message=FALSE,echo=FALSE,warning=FALSE}
+#Plot the function 
+f <- function(x,y){ 100* (y-x^2)^2 + (1-x)^2 }
+x <- seq(-2,2,length.out=200)
+y <- seq(-2,2,length.out=200)
+z = t(outer(x, y,f) )
+
+ 
+x_point=c()
+y_point=c()
+for (i in 1:length(points)) {
+if (i%%2 ==1 ) 
+{
+x_point= c(x_point,unlist(points[i])[1])
+y_point= c(y_point,unlist(points[i])[2])     
+}  
+ 
+}
+
+z_point=f(x_point,y_point)
+
+xyz_point=data.frame(x_point,y_point,z_point)
+
+
+data=data.frame(x,y,z,x_point,y_point,z_point)
+
+fig=plot_ly(data = data,x=x, y=y, z=z,showscale=FALSE) %>% 
+  add_surface() %>%
+  layout(showlegend = FALSE,
+    scene = list(
+      xaxis= list(title="X"),
+      yaxis= list(title="Y"),
+      aspectmode = 'manual', 
+      aspectratio = list(x=1, y=1, z=.5)
+    )
+  ) 
+fig=fig %>%add_markers(data=xyz_point, x = ~1, y = ~1, z = ~f(1,1), marker = list(size = 5, color = "blue"))
+
+for (i in 1:100) {
+  
+  fig=fig %>%add_markers(data=xyz_point, x = ~xyz_point$x_point, y = ~xyz_point$y_point, z = ~xyz_point$z_point, marker = list(size = 5, color = "red"))
+  
+}
+
+fig
+
+
+```
+
+#### The plot in contur function : 
+
+```{r,message=FALSE,echo=FALSE,warning=FALSE}
+
+z=c(0.8,0.8) #Initialize starting point.  
+a0=z
+maxiter=100 #Number of iteration.
+tol=0.00001 #tolerance.
+
+points= sdescent(z,tol,maxiter)
+
+f <- function(x,y){ 100* (y-x^2)^2 + (1-x)^2 }
+
+f2 <- function(r){
+ return( 100 * ((r[2] - r[1] ^ 2) ^ 2) + ((1 - r[1]) ^ 2)) 
+}
+
+
+x_point=c()
+y_point=c()
+for (i in 1:length(points)) {
+if (i%%2 ==1 )
+{
+x_point= c(x_point,unlist(points[i])[1])
+y_point= c(y_point,unlist(points[i])[2])
+}
+
+}
+
+par(mfrow=c(2,1))
+
+z_point=f(x_point,y_point)
+xyz_point=data.frame(x_point,y_point,z_point)
+xyz_point=as.matrix(xyz_point)
+
+x <- seq(-10,10,0.1)
+y <- seq(-10,10,0.1)
+z <- outer(x,y,f)
+contour(x, y, z,nlevels = 75)
+title("ZOOM OUT values -10 to 10")
+points(1,1,pch=16,col="blue")
+#points( 0.95 ,0.97,pch=16,col="red")
+
+
+for (i in 2:100) {
+  points( xyz_point[i,1],xyz_point[i,2],pch=16,col="red")
+}
+
+x <- seq(-5,5,0.1)
+y <- seq(-5,5,0.1)
+z <- outer(x,y,f)
+contour(x, y, z,nlevels = 75)
+title("ZOOM OUT values -5 to 5")
+points(1,1,pch=16,col="blue")
+#points( 0.95 ,0.97,pch=16,col="red")
+
+
+for (i in 2:100) {
+  points( xyz_point[i,1],xyz_point[i,2],pch=16,col="red")
+}
+
+
+
+```
+
+#### **Q1 section (c):** <br />
+
+The convergence is very slow, it is linear convergence $O(n)$ <br />
+We will calculate it numeric:
+$$
+\underset{n\to\infty}{lim}\frac{log||x_{n+1}-(1,1)||_{2}}{log||x_{n}-(1,1)||_{2}}\approx1\,\,\,\Longrightarrow rate\,converge:\,n  
+$$
+
+```{r,message=FALSE,echo=TRUE,warning=FALSE}
+
+log( norm( unlist(points[length(points)-1])-c(1,1),type = "2") )/log( norm( unlist(points[length(points)-3])-c(1,1),type = "2") )
+
+```
+
+
+
+#### **Q2 section (a) ** <br />
+
+Investigate the performance of the Newton method for the function <br />
+For the derivative function : 
+$$
+f(x,y)=100\cdot(y-x)^2+(1-x)^2
+$$
+The gradiant of the funciton : 
+$$
+\nabla f(x,y)= \begin{bmatrix} \frac{\partial f(x,y)}{\partial x} \\ \frac{\partial f(x,y)}{\partial y} \end{bmatrix} = \begin{bmatrix} 400x^3+2x-2-400xy \\ -200x^2+200y \end{bmatrix}
+$$
+
+
+For the Newton method we require computing the Hessian $H(f)$ as follows:
+$$
+H(f) =
+\begin{bmatrix} \frac{\partial^2 f(x,y)}{\partial^2 x} & \frac{\partial^2 f(x,y)}{\partial x \partial y} \\ \frac{\partial^2 f(x,y)}{\partial x \partial y} & \frac{\partial^2 f(x,y)}{\partial^2 y} \end{bmatrix} =
+\begin{bmatrix} 1200x^2 + 2 - 400y & -400x \\ -400x & 200 \end{bmatrix}
+$$
+
+
+
+We apply Newton Rapshon for the derivative of $f(x,y):$
+$$
+Z^{n+1} = Z^{n} - H(f)^{-1}(Z^{n}) \cdot \nabla f(Z^{n})\\
+$$
+
+
+Implement of Newtwon Rapshon method  on the derivative of $f(x,y)$ 
+```{r,message=FALSE,echo=TRUE,warning=FALSE}
+
+newton = function(a0, tol, maxiter){
+# 
+
+
+L=list()#List of all point in each iteration
+
+for (i in 1:maxiter) {
+
+x=as.numeric( unlist (a0[1]) ) 
+y=as.numeric( unlist( a0[2]) )
+
+#gradiant on function in point a0
+
+dx= -400*x*y+400*x^3-2+2*x
+dy=  200*y-200*x^2
+grad=c(dx,dy)
+
+
+#Hessian Matrix in point a0
+dxdx = -400*y + 1200*x^2 +2
+dxdy=  -400*x #dydx=dxyd !
+dydy=   200
+hess.data=c(dxdx,dxdy,dxdy,dydy)
+hess= matrix(hess.data,nrow=2,ncol=2,byrow=TRUE)
+
+
+z0=a0
+a0=a0-solve(hess)%*%grad
+l=list(a0,i)
+L=append(L,l)
+
+if( norm(a0-z0, type="2")<tol){break}#tolerance condition on the loop
+
+
+}
+
+return(L)
+
+}
+
+
+a0=c(0.5,0.5)
+tol=0.0001
+maxiter=100
+
+points=newton(a0,tol,maxiter)
+
+
+
+print(paste0( "Number of iteration: ",points[length(points)]))
+print(paste0("The numeric Min extreme point of f is:",points[length(points)-1]) )
+
+
+```
+
+
+#### **Q2 section (b):** <br />
+
+##### plot of the function with the points produced by the algorithm: <br />
+The $\color{blue}{\text{blue point}}$ is the point (1,1) the Minimum point of this f(x,y). <br />
+The $\color{red}{\text{red points}}$ are the points produced by the algorithm. <br /> 
+
+```{r,message=FALSE,echo=FALSE,warning=FALSE}
+#Plot the function 
+f <- function(x,y){ 100* (y-x^2)^2 + (1-x)^2 }
+x <- seq(-2,2,length.out=200)
+y <- seq(-2,2,length.out=200)
+z = t(outer(x, y,f) )
+
+ 
+x_point=c()
+y_point=c()
+for (i in 1:length(points)) {
+if (i%%2 ==1 ) 
+{
+x_point= c(x_point,unlist(points[i])[1])
+y_point= c(y_point,unlist(points[i])[2])     
+}  
+ 
+}
+
+z_point=f(x_point,y_point)
+
+xyz_point=data.frame(x_point,y_point,z_point)
+
+
+data=data.frame(x,y,z)
+
+fig=plot_ly(data = data,x=x, y=y, z=z,showscale=FALSE) %>% 
+  add_surface() %>%
+  layout(showlegend = FALSE,
+    scene = list(
+      xaxis= list(title="X"),
+      yaxis= list(title="Y"),
+      aspectmode = 'manual', 
+      aspectratio = list(x=1, y=1, z=.5)
+    )
+  ) 
+fig=fig %>%add_markers(data=xyz_point, x = ~1, y = ~1, z = ~0, marker = list(size = 5, color = "blue"))
+
+for (i in 1:100) {
+  
+  fig=fig %>%add_markers(data=xyz_point, x = ~xyz_point$x_point, y = ~xyz_point$y_point, z = ~xyz_point$z_point, marker = list(size = 5, color = "red"))
+  
+}
+
+fig
+
+```
+
+
+
+#### The plot in contur function : 
+
+```{r,message=FALSE,echo=FALSE,warning=FALSE}
+
+z=c(0.5,0.5) #Initialize starting point.  
+a0=z
+maxiter=100 #Number of iteration.
+tol=0.00001 #tolerance.
+
+points= sdescent(z,tol,maxiter)
+
+f <- function(x,y){ 100* (y-x^2)^2 + (1-x)^2 }
+
+f2 <- function(r){
+ return( 100 * ((r[2] - r[1] ^ 2) ^ 2) + ((1 - r[1]) ^ 2)) 
+}
+
+
+x_point=c()
+y_point=c()
+for (i in 1:length(points)) {
+if (i%%2 ==1 )
+{
+x_point= c(x_point,unlist(points[i])[1])
+y_point= c(y_point,unlist(points[i])[2])
+}
+
+}
+
+par(mfrow=c(2,1))
+
+z_point=f(x_point,y_point)
+xyz_point=data.frame(x_point,y_point,z_point)
+xyz_point=as.matrix(xyz_point)
+
+x <- seq(-10,10,0.1)
+y <- seq(-10,10,0.1)
+z <- outer(x,y,f)
+contour(x, y, z,nlevels = 75)
+title("ZOOM OUT values -10 to 10")
+points(1,1,pch=16,col="blue")
+#points( 0.95 ,0.97,pch=16,col="red")
+
+
+for (i in 2:100) {
+  points( xyz_point[i,1],xyz_point[i,2],pch=16,col="red")
+}
+
+x <- seq(-2,2,0.1)
+y <- seq(-2,2,0.1)
+z <- outer(x,y,f)
+contour(x, y, z,nlevels = 75)
+title("ZOOM OUT values -5 to 5")
+points(1,1,pch=16,col="blue")
+#points( 0.95 ,0.97,pch=16,col="red")
+
+
+for (i in 2:100) {
+  points( xyz_point[i,1],xyz_point[i,2],pch=16,col="red")
+}
+
+
+
+```
+
+#### **Q2 section (c):** <br />
+The converge rate here is  $n^2$ which is higher then the descent algorithm. <br />
+This converge rate base on the claim that : If the second derivative of $f$ exist and $Hf(x_0)$ is not the zero matrix  than the 
+converge rate us at least  $n^2$.<br />
+
+
+
+
