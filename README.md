@@ -12,8 +12,8 @@ The iterative algorithm get $g(\alpha),[m,M],tolerance$. <br />
 1. Calculate the points $x_1=M-\varphi*(M-m)$  and $x_2=m+\varphi*(M-m)$ when $\varphi=\frac{1+\sqrt{5}}{2}$. <br />
 2. Calculate $f(x_1)$  and $f(x_2)$. <br />
 3. If $f(x_2)>f(x_1)$ update the boundaries and the points: $M=x_2$ and $x_2=x_1$ and $x_1=M-\varphi*(M-m)$. <br />
-4. Otherwise If $f(x_2)<f(x_1)$ update the boundaries and the points:$m=x_1$ and $x_2=m+\varphi*(M-m)$. <br />
-5. Repeat step 2,4 until $|M-m|<tolerance$. <br />
+4. Otherwise if $f(x_2)\le(x_1)$ update the boundaries and the points: $m=x_1$ and $x_2=m+\varphi*(M-m)$. <br />
+5. Repeat step 2,4 until $|M-m|\le{tolerance}$. <br />
 6. return $\frac{|M-m|}{2}$ <br />
 
  
